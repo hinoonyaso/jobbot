@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937; }
+    h2 { margin-top: 28px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; font-size: 13px; vertical-align: top; }
+    th { background: #f3f4f6; }
+    .score { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>로봇SW 데일리 채용 리포트</h1>
+  <p>생성시각: {{ generated_at }} | 총 후보: {{ total }}</p>
+
+  <h2>Top 우선순위</h2>
+  <table>
+    <tr><th>점수</th><th>우선순위</th><th>출처</th><th>회사</th><th>포지션</th><th>지역</th><th>마감일</th><th>링크</th></tr>
+    {% for j in top_jobs %}
+    <tr>
+      <td class="score">{{ j.analysis.fit_score }}</td>
+      <td>{{ j.analysis.priority }}</td>
+      <td>{{ j.source }}</td>
+      <td>{{ j.company }}</td>
+      <td>{{ j.title }}</td>
+      <td>{{ j.location }}</td>
+      <td>{{ j.deadline or '-' }}</td>
+      <td><a href="{{ j.url }}">공고</a></td>
+    </tr>
+    <tr>
+      <td colspan="8"><strong>요약:</strong> {{ (j.description or '')[:280] }}{% if (j.description or '')|length > 280 %}...{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>(1) 대기업(지역무관)</h2>
+  <table>
+    <tr><th>회사</th><th>포지션</th><th>점수</th><th>마감일</th><th>링크</th></tr>
+    {% for j in big_companies %}
+    <tr><td>{{ j.company }}</td><td>{{ j.title }}</td><td>{{ j.analysis.fit_score }}</td><td>{{ j.deadline or '-' }}</td><td><a href="{{ j.url }}">공고</a></td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>(2) 지역우선(용인/성남/강남)</h2>
+  <table>
+    <tr><th>회사</th><th>포지션</th><th>지역</th><th>점수</th><th>마감일</th><th>링크</th></tr>
+    {% for j in regional %}
+    <tr><td>{{ j.company }}</td><td>{{ j.title }}</td><td>{{ j.location }}</td><td>{{ j.analysis.fit_score }}</td><td>{{ j.deadline or '-' }}</td><td><a href="{{ j.url }}">공고</a></td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>(3) 고용형태별</h2>
+  {% for etype, jobs in by_employment.items() %}
+  <h3>{{ etype }} ({{ jobs|length }})</h3>
+  <table>
+    <tr><th>회사</th><th>포지션</th><th>점수</th><th>마감일</th><th>링크</th></tr>
+    {% for j in jobs[:10] %}
+    <tr><td>{{ j.company }}</td><td>{{ j.title }}</td><td>{{ j.analysis.fit_score }}</td><td>{{ j.deadline or '-' }}</td><td><a href="{{ j.url }}">공고</a></td></tr>
+    {% endfor %}
+  </table>
+  {% endfor %}
+
+  <h2>(4) 오늘의 스택 트렌드 TOP 10</h2>
+  <table>
+    <tr><th>스택</th><th>빈도</th></tr>
+    {% for t in trends %}
+    <tr><td>{{ t.skill }}</td><td>{{ t.count }}</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

@@ -1,0 +1,459 @@
+log_level: INFO
+paths:
+  log_file: data/logs/jobbot.log
+network:
+  timeout_sec: 10
+  retry: 2
+collection:
+  workers: 4
+  max_items_per_source: 20
+  source_health:
+    enabled: false
+    file: data/source_health.json
+    zero_collect_threshold: 3
+search_profile:
+  keyword: 로봇 SW
+  regions:
+  - 용인
+  - 성남
+  - 강남
+  experience: 신입
+  education: 학사
+  employment_types:
+  - 정규직
+  - 계약직
+  - 인턴
+  only_open: true
+  min_description_len: 50
+crawlers:
+  stub:
+    enabled: false
+    sample_on_failure: false
+    max_items: 10
+    query:
+      keyword: 로봇 SW
+      regions:
+      - 용인
+      - 성남
+      - 강남
+      experience: 신입
+      education: 학사
+      employment_types:
+      - 정규직
+      - 계약직
+      - 인턴
+    tier: 5
+  saramin:
+    enabled: true
+    sample_on_failure: false
+    max_items: 20
+    workers: 4
+    api:
+      enabled: false
+      api_url: https://oapi.saramin.co.kr/job-search
+      access_key_env: SARAMIN_ACCESS_KEY
+      start: 0
+      sort: pd
+    render:
+      enabled: true
+      timeout_ms: 30000
+      wait_until: domcontentloaded
+      scroll_rounds: 3
+    query:
+      keyword: 로봇 SW
+      regions:
+      - 용인
+      - 성남
+      - 강남
+      loc_codes:
+      - '101010'
+      - '102180'
+      - '102190'
+      - '102200'
+      - '102210'
+      - '102400'
+      - '102410'
+      - '102420'
+      - '102430'
+      experience: 신입
+      education: 학사
+      edu_codes:
+      - '0'
+      - '3'
+      - '8'
+      job_type_codes:
+      - '1'
+      - '2'
+      - '4'
+      - '10'
+      - '11'
+      employment_types:
+      - 정규직
+      - 계약직
+      - 인턴
+    tier: 1
+  jobkorea:
+    enabled: true
+    sample_on_failure: false
+    max_items: 20
+    workers: 4
+    query:
+      keyword: 로봇 SW
+      regions:
+      - 용인
+      - 성남
+      - 강남
+      experience: 신입
+      education: 학사
+      employment_types:
+      - 정규직
+      - 계약직
+      - 인턴
+    tier: 1
+  wanted:
+    enabled: true
+    sample_on_failure: false
+    max_items: 20
+    workers: 4
+    api_url: https://www.wanted.co.kr/api/v4/jobs
+    query:
+      keyword: 로봇 SW
+      regions:
+      - 용인
+      - 성남
+      - 강남
+      experience: 신입
+      education: 학사
+      employment_types:
+      - 정규직
+      - 계약직
+      - 인턴
+    render:
+      enabled: true
+      timeout_ms: 25000
+      wait_until: domcontentloaded
+      scroll_rounds: 3
+    tier: 2
+  rocketpunch:
+    enabled: true
+    sample_on_failure: false
+    max_items: 20
+    workers: 4
+    api_url: https://www.rocketpunch.com/jobs
+    query:
+      keyword: 로봇 SW
+      regions:
+      - 용인
+      - 성남
+      - 강남
+      experience: 신입
+      education: 학사
+      employment_types:
+      - 정규직
+      - 계약직
+      - 인턴
+    render:
+      enabled: true
+      timeout_ms: 30000
+      wait_until: domcontentloaded
+      scroll_rounds: 3
+    tier: 2
+  remoteok:
+    enabled: true
+    sample_on_failure: false
+    max_items: 20
+    workers: 2
+    rss_url: https://remoteok.com/remote-dev+robotics-jobs.rss
+    query:
+      keyword: robotics robot ros slam autonomous
+      regions:
+      - remote
+      experience: entry
+      education: bachelor
+      employment_types:
+      - full-time
+      - contract
+      - intern
+    tier: 4
+  catch:
+    enabled: true
+    sample_on_failure: false
+    max_items: 10
+    workers: 3
+    query:
+      keyword: 로봇 SW
+      regions: &id001
+      - 용인
+      - 성남
+      - 강남
+      experience: 신입
+      education: 학사
+      employment_types: &id002
+      - 정규직
+      - 계약직
+      - 인턴
+    render:
+      enabled: true
+      timeout_ms: 30000
+      wait_until: domcontentloaded
+      scroll_rounds: 2
+    tier: 2
+  naverlabs:
+    enabled: true
+    sample_on_failure: false
+    max_items: 8
+    workers: 2
+    query:
+      keyword: 로봇 SW
+      regions: *id001
+      experience: 신입
+      education: 학사
+      employment_types: *id002
+    render:
+      enabled: true
+      timeout_ms: 30000
+      wait_until: domcontentloaded
+      scroll_rounds: 3
+    tier: 3
+  jumpit:
+    enabled: true
+    sample_on_failure: false
+    max_items: 12
+    workers: 3
+    query:
+      keyword: 로봇 SW
+      regions: *id001
+      experience: 신입
+      education: 학사
+      employment_types: *id002
+    render:
+      enabled: true
+      timeout_ms: 30000
+      wait_until: domcontentloaded
+      scroll_rounds: 3
+    tier: 2
+  greetinghr:
+    enabled: true
+    sample_on_failure: false
+    max_items: 12
+    workers: 3
+    query:
+      keyword: 로봇
+      regions: *id001
+      experience: 신입
+      education: 학사
+      employment_types: *id002
+    render:
+      enabled: true
+      timeout_ms: 25000
+      wait_until: domcontentloaded
+      scroll_rounds: 2
+    tier: 3
+  linkareer:
+    enabled: true
+    sample_on_failure: false
+    max_items: 12
+    workers: 3
+    query:
+      keyword: 로봇 SW
+      regions: *id001
+      experience: 신입
+      education: 학사
+      employment_types: *id002
+    render:
+      enabled: true
+      timeout_ms: 40000
+      wait_until: domcontentloaded
+      scroll_rounds: 3
+    tier: 3
+  breezyhr:
+    enabled: true
+    sample_on_failure: false
+    max_items: 10
+    workers: 2
+    query:
+      keyword: bear robotics software engineer intern
+      regions: *id001
+      experience: 신입
+      education: 학사
+      employment_types: *id002
+    render:
+      enabled: true
+      timeout_ms: 30000
+      wait_until: domcontentloaded
+      scroll_rounds: 2
+    tier: 3
+  company_pages:
+    enabled: true
+    sample_on_failure: false
+    max_items: 15
+    workers: 3
+    per_page_limit: 5
+    render:
+      enabled: true
+      timeout_ms: 30000
+      wait_until: domcontentloaded
+      scroll_rounds: 3
+    company_pages:
+    - company: 네이버랩스
+      region: 성남
+      url: https://recruit.naverlabs.com/rcrt/list.do
+    - company: 베어로보틱스
+      region: 성남
+      url: https://bearrobotics.breezy.hr/
+    - company: 위로보틱스
+      region: 용인
+      url: https://www.werobotics.ai/
+    - company: 클로봇
+      region: 성남
+      url: https://www.clobot.co.kr/
+    tier: 1
+  irobotnews:
+    enabled: false
+    sample_on_failure: false
+    max_items: 8
+    workers: 2
+    query:
+      keyword: 로봇신문 채용 개발자
+      regions: *id001
+      experience: 신입
+      education: 학사
+      employment_types: *id002
+    tier: 5
+rule_filter:
+  robot_keywords:
+  - robot
+  - 로봇
+  - slam
+  - ros
+  - autonomous
+  - 자율주행
+  - perception
+  - vision
+  - 인지
+  - 제어
+  - middleware
+  education_keywords:
+  - 학사
+  - 대졸
+  - bachelor
+  - 4년제
+  experience_keywords:
+  - 신입
+  - entry
+  - junior
+  - 0년
+  - 경력무관
+  preferred_regions:
+  - 용인
+  - 성남
+  - 강남
+  big_company_keywords:
+  - 삼성
+  - lg
+  - 현대
+  - sk
+  - 네이버
+  - 카카오
+  - 쿠팡
+  - 한화
+  employment_types:
+  - 정규직
+  - 계약직
+  - 인턴
+  only_open: true
+  min_description_len: 50
+  strict_education: false
+  strict_experience: false
+  strict_region: false
+  strict_entry: true
+  min_profile_matches: 1
+  require_robot_direct: true
+  robot_direct_keywords:
+  - 로봇
+  - robot
+  - 자율주행
+  - slam
+  - ros
+  - agv
+  - amr
+  - 로봇제어
+  - perception
+  - navigation
+  backend_noise_keywords:
+  - golang 서버
+  - 백엔드
+  - backend
+  - server
+  - api
+  - 웹서비스
+  entry_positive_keywords:
+  - 신입
+  - 경력무관
+  - entry
+  - junior
+  - new grad
+  - 0년
+  entry_negative_keywords:
+  - 시니어
+  - senior
+  - lead
+  - principal
+  - manager
+  - 책임
+  - 수석
+  - 과장
+  - 차장
+  - 부장
+  closed_positive_keywords:
+  - 접수마감
+  - 모집마감
+  - 채용마감
+  - 마감되었습니다
+  - 종료
+  - closed
+  - expired
+  closed_negative_keywords:
+  - 채용시 마감
+  - 상시채용
+  - 상시 모집
+  - 모집중
+  - 채용중
+dedup:
+  title_similarity_enabled: true
+  title_similarity_threshold: 0.9
+  cross_site_similarity_enabled: true
+  cross_site_similarity_threshold: 0.86
+ai:
+  enabled: false
+  model: gpt-4o-mini
+  api_key_env: OPENAI_API_KEY
+  timeout_sec: 15
+report:
+  top_n: 10
+  output_html: data/daily_report.html
+email:
+  enable_send: true
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  sender: hinoonyaso@gmail.com
+  app_password: itwv lpyb zhov aizi
+  recipients:
+  - hinoonyaso@gmail.com
+  skip_if_empty: true
+schedule:
+  cron: 0 8 * * *
+database:
+  engine: mysql
+  host: 127.0.0.1
+  port: 3306
+  user: jobbot
+  password: '1111'
+  database: jobbot
+  charset: utf8mb4
+search:
+  providers:
+  - bing
+  - brave
+  timeout_sec: 8
+  retries: 1

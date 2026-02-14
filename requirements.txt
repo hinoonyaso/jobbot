@@ -1,0 +1,5 @@
+jinja2
+playwright
+pymysql
+pyyaml
+requests
