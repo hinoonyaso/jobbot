@@ -10,6 +10,7 @@ JOB_URL_RE = re.compile(
     r"https?://jumpit(?:\.saramin)?\.co\.kr/position/(\d+)",
     re.I,
 )
+ROBOT_REQUIRED_TERMS = ("로봇", "robot", "ros", "slam", "자율주행", "navigation", "perception", "제어", "agv", "amr")
 
 
 def _is_job_url(url: str) -> bool:
@@ -120,6 +121,8 @@ def fetch_detail(item: Dict[str, Any], opts: Dict[str, Any], cfg: Dict[str, Any]
     # Clean and truncate
     desc = re.sub(r"\s+", " ", body_text).strip()[:2600]
     blob = f"{title} {desc}"
+    if not any(t in blob.lower() for t in ROBOT_REQUIRED_TERMS):
+        return {}
     emp_type = "인턴" if "인턴" in blob or "intern" in blob.lower() else "정규직"
 
     return {

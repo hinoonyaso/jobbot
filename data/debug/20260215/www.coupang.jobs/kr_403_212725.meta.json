@@ -1,0 +1,23 @@
+{
+  "status_code": 403,
+  "reason": "Forbidden",
+  "url": "https://www.coupang.jobs/kr/",
+  "content_type": "text/html; charset=UTF-8",
+  "content_length": 5053,
+  "headers": {
+    "Date": "Sun, 15 Feb 2026 12:27:25 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "keep-alive",
+    "Cache-Control": "private, max-age=0, no-store, no-cache, must-revalidate, post-check=0, pre-check=0",
+    "Expires": "Thu, 01 Jan 1970 00:00:01 GMT",
+    "Referrer-Policy": "same-origin",
+    "Server-Timing": "cfEdge;dur=5,cfOrigin;dur=0",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "X-Content-Type-Options": "nosniff",
+    "Content-Encoding": "gzip",
+    "Server": "cloudflare",
+    "CF-RAY": "9ce4cc9dfab4ea9f-ICN"
+  }
+}

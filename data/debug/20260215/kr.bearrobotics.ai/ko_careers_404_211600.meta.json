@@ -1,0 +1,31 @@
+{
+  "status_code": 404,
+  "reason": "Not Found",
+  "url": "https://kr.bearrobotics.ai/ko/careers/",
+  "content_type": "text/html;charset=utf-8",
+  "content_length": 386242,
+  "headers": {
+    "Date": "Sun, 15 Feb 2026 12:16:00 GMT",
+    "Content-Type": "text/html;charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "keep-alive",
+    "Content-Encoding": "gzip",
+    "CF-Ray": "9ce4bbe2ed9bea2c-ICN",
+    "CF-Cache-Status": "DYNAMIC",
+    "Access-Control-Allow-Origin": "*",
+    "Age": "19",
+    "Content-Language": "ko",
+    "ETag": "W/\"d7299f72757c0c0e86c15255856381fd\"",
+    "Expires": "Thu, 01 Jan 1970 00:00:00 GMT",
+    "Link": "<https://kr.bearrobotics.ai/error>; rel=\"canonical\"",
+    "Strict-Transport-Security": "max-age=15552000",
+    "Vary": "Accept-Encoding",
+    "Weglot": "id.9ce4bbe2ed9bea2c, p.cf, cs, ct, cp",
+    "processed-by": "Weglot",
+    "weglot-translated": "true",
+    "x-content-type-options": "nosniff",
+    "x-contextid": "uedp1S6A/cbYzupIX",
+    "x-frame-options": "SAMEORIGIN, SAMEORIGIN",
+    "Server": "cloudflare"
+  }
+}

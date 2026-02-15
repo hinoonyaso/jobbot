@@ -1,0 +1,17 @@
+# Company names that bypass strict regional preference checks.
+삼성
+LG
+현대
+SK
+네이버
+카카오
+쿠팡
+한화
+현대자동차
+현대모비스
+LG전자
+삼성전자
+SK하이닉스
+NAVER
+Kakao
+Coupang

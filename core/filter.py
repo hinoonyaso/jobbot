@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List
 
 from core.normalize import normalize_text
@@ -37,6 +38,10 @@ def _backend_noise(text: str, backend_keywords: List[str], robot_keywords: List[
 
 
 def _region_or_big_company(job: Dict[str, Any], preferred_regions: List[str], big_company_keywords: List[str]) -> bool:
+    # company_pages source is curated as enterprise career pages.
+    if str(job.get("source", "")).strip().lower() == "company_pages":
+        return True
+
     company = job.get("company", "")
     location = job.get("location", "")
     description = job.get("description", "")
@@ -46,6 +51,21 @@ def _region_or_big_company(job: Dict[str, Any], preferred_regions: List[str], bi
 
     location_text = " ".join([location, description, job.get("title", "")])
     return _contains_any(location_text, preferred_regions)
+
+
+def _load_allowlist(path: str) -> List[str]:
+    if not path:
+        return []
+    p = Path(path)
+    if not p.exists():
+        return []
+    out: List[str] = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        out.append(s)
+    return out
 
 
 def _is_open(job: Dict[str, Any]) -> bool:
@@ -130,42 +150,78 @@ def rule_filter(jobs: List[Dict[str, Any]], cfg: Dict[str, Any], logger) -> List
         "closed_negative_keywords",
         ["채용시 마감", "상시채용", "상시 모집", "모집중", "채용중"],
     )
+    non_job_keywords = cfg.get(
+        "non_job_keywords",
+        ["설명회", "멘토링", "아카데미", "교육", "부트캠프", "특강", "세미나", "컨퍼런스", "체험단"],
+    )
+    big_company_allowlist_path = str(cfg.get("big_company_allowlist_path", "data/bigcorp_allowlist.txt"))
+    big_company_allowlist = _load_allowlist(big_company_allowlist_path)
+    big_company_all = list(dict.fromkeys(list(big_company_keywords) + big_company_allowlist))
 
     passed = []
+    drop_reasons = {
+        "closed": 0,
+        "non_job": 0,
+        "short_desc": 0,
+        "robot_kw": 0,
+        "robot_direct": 0,
+        "backend_noise": 0,
+        "entry": 0,
+        "employment": 0,
+        "education": 0,
+        "experience": 0,
+        "region": 0,
+        "profile": 0,
+    }
     for job in jobs:
         blob = " ".join([job.get("title", ""), job.get("description", ""), job.get("company", "")])
 
         if only_open and not _is_open_text_aware(job, closed_positive_keywords, closed_negative_keywords):
+            drop_reasons["closed"] += 1
+            continue
+        if non_job_keywords and _contains_any(blob, non_job_keywords):
+            drop_reasons["non_job"] += 1
             continue
         if len(normalize_text(job.get("description", ""))) < min_desc_len:
+            drop_reasons["short_desc"] += 1
             continue
         if robot_keywords and not _contains_any(blob, robot_keywords):
+            drop_reasons["robot_kw"] += 1
             continue
         if require_robot_direct and not _robot_direct_match(blob, robot_direct_keywords):
+            drop_reasons["robot_direct"] += 1
             continue
         if _backend_noise(blob, backend_noise_keywords, robot_direct_keywords):
+            drop_reasons["backend_noise"] += 1
             continue
         if not _entry_friendly(job, strict_entry, entry_positive_keywords, entry_negative_keywords):
+            drop_reasons["entry"] += 1
             continue
         if not _employment_match(job, employment_types):
+            drop_reasons["employment"] += 1
             continue
 
         edu_ok = _contains_any(blob, education_keywords) if education_keywords else True
         exp_ok = _contains_any(blob, experience_keywords) if experience_keywords else True
-        region_ok = _region_or_big_company(job, preferred_regions, big_company_keywords)
+        region_ok = _region_or_big_company(job, preferred_regions, big_company_all)
 
         if strict_education and not edu_ok:
+            drop_reasons["education"] += 1
             continue
         if strict_experience and not exp_ok:
+            drop_reasons["experience"] += 1
             continue
         if strict_region and not region_ok:
+            drop_reasons["region"] += 1
             continue
 
         profile_score = int(edu_ok) + int(exp_ok) + int(region_ok)
         if profile_score < min_profile_matches:
+            drop_reasons["profile"] += 1
             continue
 
         passed.append(job)
 
     logger.info("rule_filter removed=%d", len(jobs) - len(passed))
+    logger.info("rule_filter drop_reasons=%s", ", ".join(f"{k}:{v}" for k, v in drop_reasons.items() if v))
     return passed

@@ -1,0 +1,20 @@
+{
+  "status_code": 504,
+  "reason": "Gateway Time-out",
+  "url": "https://linkareer.com/search/result?query=%EB%A1%9C%EB%B4%87+SW",
+  "content_type": "text/html",
+  "content_length": 132,
+  "headers": {
+    "Content-Type": "text/html",
+    "Content-Length": "132",
+    "Connection": "keep-alive",
+    "Date": "Sun, 15 Feb 2026 05:02:58 GMT",
+    "Server": "nginx/1.22.1",
+    "Cache-Control": "no-cache, no-store",
+    "Vary": "Accept-Encoding",
+    "X-Cache": "Error from cloudfront",
+    "Via": "1.1 92711e6213b28f3e9ff56328b80c9690.cloudfront.net (CloudFront)",
+    "X-Amz-Cf-Pop": "ICN80-P2",
+    "X-Amz-Cf-Id": "vbRrRyARxRml0iPkb25YIWyqP5zkIhW4N97EwTkZpel1BeJv6qJMDQ=="
+  }
+}

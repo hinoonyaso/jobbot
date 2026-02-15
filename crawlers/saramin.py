@@ -2,19 +2,32 @@ import re
 from datetime import datetime
 import os
 from typing import Any, Dict, List
-from urllib.parse import quote_plus
 import html
+import json
 import xml.etree.ElementTree as ET
+from urllib.parse import quote_plus, unquote
 
-from crawlers.common import get_render_policy, request_with_retry, search_site_links
-
-_LINK_RE = re.compile(
-    r"(https?://www\.saramin\.co\.kr/zf_user/jobs/relay/view\?[^\"'\s<>]*rec_idx=\d+[^\"'\s<>]*|/zf_user/jobs/relay/view\?[^\"'\s<>]*rec_idx=\d+[^\"'\s<>]*)",
-    re.I,
+from crawlers.common import (
+    get_render_policy,
+    request_with_retry,
+    search_links_with_playwright,
+    search_multi_domains,
+    search_site_links,
 )
+
 _TITLE_RE = re.compile(r"<title>(.*?)</title>", re.I | re.S)
 _DEADLINE_RE = re.compile(r"(20\d{2}[./-]\d{1,2}[./-]\d{1,2}).{0,20}(마감|까지|종료)", re.I)
+_META_OG_TITLE_RE = re.compile(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', re.I)
+_META_TW_TITLE_RE = re.compile(r'<meta[^>]+name=["\']twitter:title["\'][^>]+content=["\']([^"\']+)["\']', re.I)
+_META_OG_DESC_RE = re.compile(r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)["\']', re.I)
+_JSONLD_RE = re.compile(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', re.I | re.S)
+_TITLE_COMPANY_RE = re.compile(r"^\s*\[([^\]]+)\]")
+_LABEL_VALUE_RE = re.compile(
+    r"(?:근무지역|근무\s*지역|지역)\s*[:：]?\s*([가-힣A-Za-z0-9·\-/(),\s]{2,60})",
+    re.I,
+)
 SARAMIN_API_URL = "https://oapi.saramin.co.kr/job-search"
+SARAMIN_SEARCH_URL = "https://www.saramin.co.kr/zf_user/search/recruit?searchType=search&searchword={q}"
 
 EMPLOYMENT_CODE_MAP = {
     "1": "정규직",
@@ -33,15 +46,171 @@ def _to_abs(url: str) -> str:
 
 
 def _normalize_detail_url(url: str) -> str:
+    rec_idx = _extract_rec_idx(url)
+    if rec_idx:
+        return f"https://www.saramin.co.kr/zf_user/jobs/view?rec_idx={rec_idx}"
     raw = _to_abs(url)
-    m = re.search(r"[?&]rec_idx=(\d+)", raw)
-    if m:
-        return f"https://www.saramin.co.kr/zf_user/jobs/view?rec_idx={m.group(1)}"
+    if "/zf_user/jobs/" in raw.lower():
+        return raw
     return raw
 
 
-def _extract_list_urls(page_html: str) -> List[str]:
-    return list(dict.fromkeys([_normalize_detail_url(u) for u in _LINK_RE.findall(page_html or "")]))
+def _extract_rec_idx(url: str) -> str:
+    raw = html.unescape((url or "").strip())
+    for _ in range(2):
+        raw = unquote(raw)
+    low = raw.lower()
+    if "saramin.co.kr" not in low:
+        return ""
+    m = re.search(r"(?:\?|&|amp;)rec_idx(?:=|%3d)(\d+)", raw, re.I)
+    if m:
+        return m.group(1)
+    m = re.search(r"rec_idx(?:=|%3d)(\d+)", raw, re.I)
+    if m:
+        return m.group(1)
+    return ""
+
+
+def _extract_rec_idx_urls_from_html(page_html: str) -> List[str]:
+    raw = html.unescape(page_html or "")
+    for _ in range(2):
+        raw = unquote(raw)
+    out: List[str] = []
+    seen = set()
+    for rec_idx in re.findall(r"rec_idx(?:=|%3[dD])(\d+)", raw, re.I):
+        u = f"https://www.saramin.co.kr/zf_user/jobs/view?rec_idx={rec_idx}"
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(u)
+    return out
+
+
+def _strip_tags(s: str) -> str:
+    s = re.sub(r"<[^>]+>", " ", s or "")
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _extract_jsonld_objects(page_html: str) -> List[Dict[str, Any]]:
+    objs: List[Dict[str, Any]] = []
+    for m in _JSONLD_RE.finditer(page_html or ""):
+        raw = (m.group(1) or "").strip()
+        if not raw:
+            continue
+        raw = html.unescape(raw)
+        try:
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                objs.append(data)
+            elif isinstance(data, list):
+                for x in data:
+                    if isinstance(x, dict):
+                        objs.append(x)
+        except Exception:
+            continue
+    return objs
+
+
+def _pick_company_from_jsonld(objs: List[Dict[str, Any]]) -> str:
+    cand_keys = ["hiringOrganization", "worksFor", "author", "publisher"]
+    for o in objs:
+        if o.get("@type") in ("JobPosting", "jobPosting"):
+            for k in cand_keys:
+                v = o.get(k)
+                if isinstance(v, dict) and v.get("name"):
+                    return str(v["name"]).strip()
+            v = o.get("organization")
+            if isinstance(v, dict) and v.get("name"):
+                return str(v["name"]).strip()
+    for o in objs:
+        if o.get("@type") in ("Organization", "organization") and o.get("name"):
+            return str(o["name"]).strip()
+    return ""
+
+
+def _pick_location_from_jsonld(objs: List[Dict[str, Any]]) -> str:
+    for o in objs:
+        if o.get("@type") not in ("JobPosting", "jobPosting"):
+            continue
+        loc = o.get("jobLocation")
+        if isinstance(loc, list):
+            loc = loc[0] if loc else {}
+        if isinstance(loc, dict):
+            addr = loc.get("address")
+            if isinstance(addr, dict):
+                parts: List[str] = []
+                for key in ("addressRegion", "addressLocality", "streetAddress"):
+                    if addr.get(key):
+                        parts.append(str(addr[key]).strip())
+                if parts:
+                    return " ".join(parts)
+    return ""
+
+
+def _pick_company_from_title(title: str) -> str:
+    m = _TITLE_COMPANY_RE.search(title or "")
+    if not m:
+        return ""
+    return html.unescape(m.group(1).strip())
+
+
+def _pick_location_from_text(page_html: str) -> str:
+    text = _strip_tags(page_html)
+    m = _LABEL_VALUE_RE.search(text)
+    if not m:
+        return ""
+    loc = re.sub(r"\s+", " ", m.group(1).strip())
+    # trim obvious trailing labels if the text run is too long
+    loc = re.split(r"(경력|학력|급여|직급|고용형태|근무요일|근무시간)\s*[:：]?", loc, maxsplit=1)[0].strip()
+    return loc[:40]
+
+
+def _fetch_direct_search_urls(opts: Dict[str, Any], cfg: Dict[str, Any], logger) -> List[str]:
+    q = opts.get("query", {})
+    keyword = str(q.get("keyword", "로봇 SW")).strip()
+    if not keyword:
+        return []
+
+    timeout = int(cfg.get("network", {}).get("timeout_sec", 10))
+    retries = int(cfg.get("network", {}).get("retry", 2))
+    max_items = int(opts.get("max_items", 20))
+    search_url = SARAMIN_SEARCH_URL.format(q=quote_plus(keyword))
+
+    urls: List[str] = []
+    seen = set()
+
+    resp = request_with_retry("GET", search_url, timeout, retries, logger, log_failures=False)
+    page_html = resp.text if resp else ""
+    for u in _extract_rec_idx_urls_from_html(page_html):
+        if u in seen:
+            continue
+        seen.add(u)
+        urls.append(u)
+
+    if not urls:
+        render = get_render_policy(opts, default_timeout_ms=30000, default_wait_until="domcontentloaded", default_scroll_rounds=3)
+        if render.get("enabled", True):
+            pw_urls = search_links_with_playwright(
+                start_url=search_url,
+                link_regex=r"https?://(?:www\.)?saramin\.co\.kr/zf_user/jobs/(?:relay/)?view\?rec_idx=\d+",
+                timeout_ms=int(render.get("timeout_ms", 30000)),
+                logger=logger,
+                wait_until=str(render.get("wait_until", "domcontentloaded")),
+                scroll_rounds=int(render.get("scroll_rounds", 3)),
+            )
+            logger.info("source=saramin playwright links=%d", len(pw_urls))
+            for u in pw_urls:
+                rec_idx = _extract_rec_idx(u)
+                if not rec_idx:
+                    continue
+                clean = f"https://www.saramin.co.kr/zf_user/jobs/view?rec_idx={rec_idx}"
+                if clean in seen:
+                    continue
+                seen.add(clean)
+                urls.append(clean)
+
+    logger.info("source=saramin direct_search links=%d sample=%s", len(urls), urls[:3])
+    return urls[:max_items]
 
 
 def _safe_int(v: Any, default: int = 0) -> int:
@@ -167,63 +336,62 @@ def _fetch_from_api(opts: Dict[str, Any], cfg: Dict[str, Any], logger) -> List[D
     return items[:max_items]
 
 
-def _fetch_with_playwright(search_url: str, render: Dict[str, Any], logger) -> List[str]:
-    try:
-        from playwright.sync_api import sync_playwright
-    except Exception:
-        return []
-
-    urls: List[str] = []
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            ctx = browser.new_context(
-                user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                locale="ko-KR",
-            )
-            page = ctx.new_page()
-            page.goto(search_url, wait_until=render["wait_until"], timeout=render["timeout_ms"])
-            for _ in range(render["scroll_rounds"]):
-                page.mouse.wheel(0, 3000)
-                page.wait_for_timeout(800)
-            hrefs = page.eval_on_selector_all("a[href]", "els => els.map(e => e.href)")
-            for href in hrefs or []:
-                if isinstance(href, str) and "rec_idx=" in href:
-                    urls.append(_normalize_detail_url(href))
-            browser.close()
-    except Exception as exc:
-        logger.info("source=saramin playwright failed err=%s", exc)
-    return list(dict.fromkeys(urls))
-
-
 def fetch_list(opts: Dict[str, Any], cfg: Dict[str, Any], logger) -> List[Dict[str, Any]]:
     api_items = _fetch_from_api(opts, cfg, logger)
     if api_items:
         return api_items
 
+    direct_urls = _fetch_direct_search_urls(opts, cfg, logger)
+    if direct_urls:
+        max_items = int(opts.get("max_items", 20))
+        out = []
+        for u in direct_urls[:max_items]:
+            m = re.search(r"rec_idx=(\d+)", u)
+            out.append(
+                {
+                    "url": u,
+                    "source_job_id": (m.group(1) if m else u),
+                    "title": "Saramin Robotics Position",
+                    "company": "Unknown",
+                    "location": "미상",
+                    "posted_at": datetime.now().strftime("%Y-%m-%d"),
+                }
+            )
+        return out
+
     q = opts.get("query", {})
     keyword = q.get("keyword", "로봇 sw")
-    search_url = f"https://www.saramin.co.kr/zf_user/search/recruit?searchword={quote_plus(keyword)}"
-    render = get_render_policy(opts, default_timeout_ms=30000, default_scroll_rounds=3)
-
     timeout = int(cfg.get("network", {}).get("timeout_sec", 10))
     retries = int(cfg.get("network", {}).get("retry", 2))
-
-    # 1) Playwright first (saramin blocks bot HTTP requests)
-    urls: List[str] = []
-    if render["enabled"]:
-        urls = _fetch_with_playwright(search_url, render, logger)
-        logger.info("source=saramin playwright links=%d", len(urls))
-
-    # 2) HTTP fallback
-    if not urls:
-        resp = request_with_retry("GET", search_url, timeout, retries, logger)
-        if resp:
-            urls = _extract_list_urls(resp.text)
-
-    # 3) Search engine fallback
-    if not urls:
-        urls = [_normalize_detail_url(u) for u in search_site_links("saramin.co.kr", keyword, timeout, retries, logger, cfg.get("search", {})) if "rec_idx=" in u]
+    search_query = f"{keyword} rec_idx"
+    links = search_site_links("saramin.co.kr", search_query, timeout, retries, logger, cfg.get("search", {}))
+    logger.info(
+        "source=saramin links returned type=%s len=%d",
+        type(links).__name__,
+        len(links) if isinstance(links, list) else -1,
+    )
+    if not links:
+        query_candidates = [
+            f"{keyword} rec_idx",
+            "site:saramin.co.kr zf_user jobs view rec_idx",
+            "site:saramin.co.kr zf_user jobs relay view rec_idx",
+        ]
+        seen = set()
+        for qx in query_candidates:
+            for u in search_multi_domains(["saramin.co.kr"], qx, timeout, retries, logger, cfg.get("search", {})):
+                if u in seen:
+                    continue
+                seen.add(u)
+                links.append(u)
+    logger.info("source=saramin search returned urls sample=%s", links[:3])
+    urls = []
+    for link in links:
+        rec_idx = _extract_rec_idx(link)
+        if not rec_idx:
+            continue
+        urls.append(f"https://www.saramin.co.kr/zf_user/jobs/view?rec_idx={rec_idx}")
+    urls = list(dict.fromkeys(urls))
+    logger.info("source=saramin search_links=%d normalized=%d", len(links), len(urls))
 
     max_items = int(opts.get("max_items", 20))
     out = []
@@ -243,50 +411,70 @@ def fetch_list(opts: Dict[str, Any], cfg: Dict[str, Any], logger) -> List[Dict[s
 
 
 def fetch_detail(item: Dict[str, Any], opts: Dict[str, Any], cfg: Dict[str, Any], logger) -> Dict[str, Any]:
+    if not bool(opts.get("detail_fetch_enabled", False)):
+        return {}
+
     url = _normalize_detail_url(str(item.get("url", "")))
-    render = get_render_policy(opts, default_timeout_ms=20000, default_scroll_rounds=1)
-
-    # Try Playwright for detail too (saramin blocks HTTP)
-    page_html = ""
-    if render["enabled"]:
-        try:
-            from playwright.sync_api import sync_playwright
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                ctx = browser.new_context(
-                    user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                    locale="ko-KR",
-                )
-                pg = ctx.new_page()
-                pg.goto(url, wait_until="domcontentloaded", timeout=render["timeout_ms"])
-                pg.wait_for_timeout(1000)
-                page_html = pg.content()
-                browser.close()
-        except Exception as exc:
-            logger.debug("source=saramin detail playwright failed url=%s err=%s", url, exc)
-
-    # HTTP fallback
-    if not page_html:
-        timeout = int(opts.get("detail_http_timeout_sec", min(6, int(cfg.get("network", {}).get("timeout_sec", 10)))))
-        retries = int(opts.get("detail_http_retries", 0))
-        resp = request_with_retry("GET", url, timeout, retries, logger, log_failures=False)
-        if resp:
-            page_html = resp.text
+    timeout = int(opts.get("detail_http_timeout_sec", max(20, int(cfg.get("network", {}).get("timeout_sec", 10)))))
+    retries = int(opts.get("detail_http_retries", 1))
+    resp = request_with_retry("GET", url, timeout, retries, logger, log_failures=False)
+    page_html = resp.text if resp else ""
 
     if not page_html:
         return {}
 
-    title_match = _TITLE_RE.search(page_html)
+    title = ""
+    m = _META_OG_TITLE_RE.search(page_html)
+    if m:
+        title = html.unescape(m.group(1).strip())
+    if not title:
+        m = _META_TW_TITLE_RE.search(page_html)
+        if m:
+            title = html.unescape(m.group(1).strip())
+    if not title:
+        m = _TITLE_RE.search(page_html)
+        if m:
+            title = html.unescape(m.group(1).strip())
+
+    jsonld = _extract_jsonld_objects(page_html)
+    company = _pick_company_from_jsonld(jsonld)
+    if not company:
+        company = _pick_company_from_title(title)
+    if not company:
+        company = "Unknown"
+
+    location = _pick_location_from_jsonld(jsonld)
+    if not location:
+        location = _pick_location_from_text(page_html)
+    if not location:
+        location = "미상"
+
     deadline_match = _DEADLINE_RE.search(page_html)
-    title = (title_match.group(1).strip() if title_match else "Saramin Robotics Position")[:120]
-    desc = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", page_html))[:2200]
+    deadline = deadline_match.group(1).replace(".", "-").replace("/", "-") if deadline_match else ""
+
+    desc = ""
+    dm = _META_OG_DESC_RE.search(page_html)
+    if dm:
+        desc = html.unescape(dm.group(1).strip())
+    if not desc:
+        desc = _strip_tags(page_html)[:2200]
+
+    employment_type = "정규직"
+    for o in jsonld:
+        if o.get("@type") in ("JobPosting", "jobPosting") and o.get("employmentType"):
+            employment_type = str(o.get("employmentType")).strip()
+            break
+
+    status_text = ""
+    if any(x in desc for x in ("모집중", "접수중", "진행중")):
+        status_text = "모집중"
 
     return {
-        "title": title,
-        "company": "Unknown",
-        "location": "미상",
-        "employment_type": "정규직",
-        "deadline": deadline_match.group(1).replace(".", "-").replace("/", "-") if deadline_match else "",
-        "status_text": "모집중" if "모집중" in desc or "진행중" in desc else "",
+        "title": (title or "Saramin Robotics Position")[:120],
+        "company": company,
+        "location": location,
+        "employment_type": employment_type,
+        "deadline": deadline,
+        "status_text": status_text,
         "description": desc,
     }

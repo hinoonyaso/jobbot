@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from typing import Any, Dict, List
-from urllib.parse import urlparse
+from urllib.parse import urldefrag, urlparse
 
 from crawlers.common import (
     get_render_policy,
@@ -13,6 +13,14 @@ from crawlers.common import (
 
 HREF_RE = re.compile(r'href=["\']([^"\']+)["\']', re.I)
 JOB_PATH_RE = re.compile(r"(career|careers|recruit|jobs?|position|posting|apply|o/)", re.I)
+BLOCKED_PATH_RE = re.compile(
+    r"(about|company|news|press|media|blog|story|ir|investor|contact|privacy|terms|policy|faq)",
+    re.I,
+)
+JOB_SIGNAL_RE = re.compile(
+    r"(채용|모집|지원|공고|recruit|career|job|position|opening|hiring|apply)",
+    re.I,
+)
 
 
 def _extract_job_links(html: str, base_url: str) -> List[str]:
@@ -20,6 +28,12 @@ def _extract_job_links(html: str, base_url: str) -> List[str]:
     for href in HREF_RE.findall(html or ""):
         abs_url = same_host_or_relative(base_url, href)
         if not abs_url:
+            continue
+        # Drop fragment-only variants and known error routes that frequently produce 404.
+        abs_url, _ = urldefrag(abs_url)
+        if not abs_url or abs_url.endswith("/error") or "/error/" in abs_url:
+            continue
+        if BLOCKED_PATH_RE.search(abs_url):
             continue
         if JOB_PATH_RE.search(abs_url):
             links.append(abs_url)
@@ -78,9 +92,10 @@ def fetch_list(opts: Dict[str, Any], cfg: Dict[str, Any], logger) -> List[Dict[s
                     scroll_rounds=render["scroll_rounds"],
                 )
 
-        # 상세 링크를 못 찾으면 시작 페이지 자체라도 후보로 넣어둔다.
+        # 채용성 링크를 찾지 못한 회사는 스킵한다.
         if not links:
-            links = [start_url]
+            logger.info("source=company_pages skip no_job_links company=%s url=%s", company, start_url)
+            continue
 
         for u in links[:per_page_limit]:
             if u in seen:
@@ -111,7 +126,9 @@ def fetch_detail(item: Dict[str, Any], opts: Dict[str, Any], cfg: Dict[str, Any]
         return {}
 
     parsed = parse_title_description(resp.text)
-    text_blob = f"{parsed.get('title','')} {parsed.get('description','')}"
+    text_blob = f"{parsed.get('title','')} {parsed.get('description','')} {item.get('url','')}"
+    if not JOB_SIGNAL_RE.search(text_blob):
+        return {}
     return {
         "title": parsed.get("title", item.get("title", "")),
         "description": parsed.get("description", ""),

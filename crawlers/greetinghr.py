@@ -6,10 +6,16 @@ from crawlers.common import get_render_policy, parse_title_description, request_
 
 DOMAINS = ["greetinghr.com"]
 JOB_URL_RE = re.compile(r"https?://[a-z0-9\-.]*greetinghr\.com/(?:o|jobs?|positions?|job)/[a-zA-Z0-9\-_/]+", re.I)
+BLOCKED_PATH_HINTS = ("/features/", "/blog/", "/pricing", "/help", "/about", "/customers")
+NON_JOB_TEXT_HINTS = ("제품", "features", "pricing", "요금", "demo", "소개")
 
 
 def _valid(url: str) -> bool:
-    return bool(JOB_URL_RE.match(url.strip()))
+    u = (url or "").strip()
+    if not JOB_URL_RE.match(u):
+        return False
+    ul = u.lower()
+    return not any(k in ul for k in BLOCKED_PATH_HINTS)
 
 
 def _fetch_with_playwright(keyword: str, render: Dict[str, Any], logger) -> List[str]:
@@ -82,10 +88,11 @@ def fetch_list(opts: Dict[str, Any], cfg: Dict[str, Any], logger) -> List[Dict[s
 
     # 3) Search fallback
     if not urls:
-        urls = [u for u in search_multi_domains(DOMAINS, f"로봇 채용 slam navigation", timeout, retries, logger, cfg.get("search", {})) if "greetinghr.com" in u.lower()]
-
-    if not urls:
-        urls = ["https://www.greetinghr.com/"]
+        urls = [
+            u
+            for u in search_multi_domains(DOMAINS, "site:greetinghr.com 로봇 채용", timeout, retries, logger, cfg.get("search", {}))
+            if _valid(u)
+        ]
 
     max_items = int(opts.get("max_items", 12))
     return [
@@ -98,6 +105,7 @@ def fetch_list(opts: Dict[str, Any], cfg: Dict[str, Any], logger) -> List[Dict[s
             "location": "미상",
         }
         for u in urls[:max_items]
+        if _valid(u)
     ]
 
 
@@ -135,6 +143,8 @@ def fetch_detail(item: Dict[str, Any], opts: Dict[str, Any], cfg: Dict[str, Any]
 
     parsed = parse_title_description(page_html)
     blob = f"{parsed.get('title','')} {parsed.get('description','')}"
+    if any(k in blob.lower() for k in NON_JOB_TEXT_HINTS):
+        return {}
     return {
         "title": parsed.get("title", item.get("title", "")),
         "description": parsed.get("description", ""),

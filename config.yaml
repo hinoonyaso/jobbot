@@ -7,6 +7,8 @@ network:
 collection:
   workers: 4
   max_items_per_source: 20
+  only_sources: []
+  exclude_sources: []
   source_health:
     enabled: false
     file: data/source_health.json
@@ -48,8 +50,11 @@ crawlers:
     sample_on_failure: false
     max_items: 20
     workers: 4
+    detail_fetch_enabled: true
+    detail_http_timeout_sec: 20
+    detail_http_retries: 1
     api:
-      enabled: false
+      enabled: true
       api_url: https://oapi.saramin.co.kr/job-search
       access_key_env: SARAMIN_ACCESS_KEY
       start: 0
@@ -139,6 +144,7 @@ crawlers:
     sample_on_failure: false
     max_items: 20
     workers: 4
+    detail_fetch_enabled: false
     api_url: https://www.rocketpunch.com/jobs
     query:
       keyword: 로봇 SW
@@ -181,7 +187,7 @@ crawlers:
     max_items: 10
     workers: 3
     query:
-      keyword: 로봇 SW
+      keyword: 로봇 ROS SLAM 자율주행 제어
       regions: &id001
       - 용인
       - 성남
@@ -286,18 +292,108 @@ crawlers:
   company_pages:
     enabled: true
     sample_on_failure: false
-    max_items: 15
+    max_items: 80
     workers: 3
-    per_page_limit: 5
+    per_page_limit: 4
     render:
       enabled: true
       timeout_ms: 30000
       wait_until: domcontentloaded
       scroll_rounds: 3
     company_pages:
+    - company: 두산로보틱스
+      region: 성남
+      url: https://www.doosanrobotics.com/ko/career
+    - company: HD현대로보틱스
+      region: 대구
+      url: https://recruit.hd.com
+    - company: 유진로봇
+      region: 인천
+      url: https://yujinrobot.com/company/recruit
+    - company: 레인보우로보틱스
+      region: 대전
+      url: https://rainbow-robotics.com/
+    - company: 서울로보틱스
+      region: 서울
+      url: https://seoulrobotics.tech/careers/
+    - company: 빅웨이브로보틱스
+      region: 서울
+      url: https://www.bigwave-robotics.com/
+    - company: 씨메스
+      region: 서울
+      url: https://www.cmes.ai/
+    - company: 원더풀플랫폼
+      region: 서울
+      url: https://wonderfulplatform.com/career
+    - company: 로보티즈
+      region: 서울
+      url: http://www.robotis.com/
+    - company: 트위니
+      region: 대전
+      url: https://www.twinyi.com/
+    - company: 에브리봇
+      region: 성남
+      url: https://everybot.co.kr/
+    - company: 휴림로봇
+      region: 성남
+      url: http://www.hyulimrobot.com/
+    - company: 로보스타
+      region: 안산
+      url: https://www.robostar.com/
+    - company: 유일로보틱스
+      region: 김포
+      url: https://www.yuilrobotics.com/
+    - company: 티로보틱스
+      region: 오산
+      url: https://tirobotics.com/career
+    - company: 로봇앤드디자인
+      region: 성남
+      url: https://www.robotndesign.com/
+    - company: 모비어스
+      region: 서울
+      url: https://www.mobiers.com
+    - company: 메이크웨어
+      region: 서울
+      url: https://www.makeware.co.kr/
+    - company: 시스콘로보틱스
+      region: 인천
+      url: https://sysconrobotics.com
+    - company: 큐렉소
+      region: 서울
+      url: https://www.curexo.com/
+    - company: 케이스랩
+      region: 서울
+      url: https://www.caselab.kr
+    - company: 티라로보틱스
+      region: 서울
+      url: https://www.tirarobotics.com
+    - company: 삼성전자
+      region: 수원
+      url: https://www.samsungcareers.com
+    - company: SK하이닉스
+      region: 이천
+      url: https://recruit.skhynix.com/
+    - company: LG전자
+      region: 서울
+      url: https://www.lgcareers.com
+    - company: 현대자동차
+      region: 서울
+      url: https://talent.hyundai.com/
+    - company: 한화에어로스페이스
+      region: 성남
+      url: https://www.hanwhain.com/web/apply/notification/list.do
+    - company: 쿠팡
+      region: 서울
+      url: https://www.coupang.jobs/kr/
+    - company: 카카오
+      region: 성남
+      url: https://careers.kakao.com/jobs
+    - company: KT
+      region: 성남
+      url: https://recruit.kt.com/
     - company: 네이버랩스
       region: 성남
-      url: https://recruit.naverlabs.com/rcrt/list.do
+      url: https://recruit.navercorp.com
     - company: 베어로보틱스
       region: 성남
       url: https://bearrobotics.breezy.hr/
@@ -306,7 +402,7 @@ crawlers:
       url: https://www.werobotics.ai/
     - company: 클로봇
       region: 성남
-      url: https://www.clobot.co.kr/
+      url: https://clobot.co.kr/recruit
     tier: 1
   irobotnews:
     enabled: false
@@ -321,18 +417,7 @@ crawlers:
       employment_types: *id002
     tier: 5
 rule_filter:
-  robot_keywords:
-  - robot
-  - 로봇
-  - slam
-  - ros
-  - autonomous
-  - 자율주행
-  - perception
-  - vision
-  - 인지
-  - 제어
-  - middleware
+  robot_keywords: []
   education_keywords:
   - 학사
   - 대졸
@@ -357,18 +442,30 @@ rule_filter:
   - 카카오
   - 쿠팡
   - 한화
+  big_company_allowlist_path: data/bigcorp_allowlist.txt
+  non_job_keywords:
+  - 설명회
+  - 멘토링
+  - 아카데미
+  - 교육
+  - 부트캠프
+  - 특강
+  - 세미나
+  - 컨퍼런스
+  - 체험단
+  - 테이블톡
   employment_types:
   - 정규직
   - 계약직
   - 인턴
   only_open: true
-  min_description_len: 50
+  min_description_len: 20
   strict_education: false
   strict_experience: false
   strict_region: false
-  strict_entry: true
-  min_profile_matches: 1
-  require_robot_direct: true
+  strict_entry: false
+  min_profile_matches: 0
+  require_robot_direct: false
   robot_direct_keywords:
   - 로봇
   - robot
@@ -453,6 +550,7 @@ database:
   charset: utf8mb4
 search:
   providers:
+  - duckduckgo
   - bing
   - brave
   timeout_sec: 8

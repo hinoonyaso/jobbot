@@ -1,0 +1,18 @@
+{
+  "status_code": 404,
+  "reason": "Not Found",
+  "url": "https://rainbow-robotics.com/ko/career",
+  "content_type": "text/html; charset=UTF-8",
+  "content_length": 71811,
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sun, 15 Feb 2026 12:15:49 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "keep-alive",
+    "Vary": "Accept-Encoding",
+    "Cache-Control": "no-cache, private",
+    "Set-Cookie": "laravel_session=eyJpdiI6Ilk5SHpjeWpEa0V6alFkTTFUOW5yMmc9PSIsInZhbHVlIjoidndrRDlEZWFPQ04xYnVlYlltMUNGa1wvYnRyUjg2WmJ3ckJ0Y2o3V1VDcXQ4OXF5R3Y0eEFjcUQxQ3BnXC84OGFVTnVyZFBhXC85cENzRFNobVpRbXEzRW1CQnlrZzBYdlRJV01zWXZ3VFdiekZRU1E2WVUrWXRXZmNLVVM3K3pwR1QiLCJtYWMiOiJiNTUwOGYzYjc1ZmNkMjk2ZDIzMDEzOWE3NzZlZTc5MmJlYTcxYWMxYTk5ZDU0YTA3YTUxODljODk5ZjA3NmM4In0%3D; expires=Sun, 15-Feb-2026 14:15:49 GMT; Max-Age=7200; path=/; httponly",
+    "Content-Encoding": "gzip"
+  }
+}

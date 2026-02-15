@@ -142,6 +142,18 @@ def run_crawlers(cfg: Dict[str, Any], logger: logging.Logger) -> List[Dict[str, 
     results: List[Job] = []
     crawler_cfg = cfg.get("crawlers", {})
     collection_cfg = cfg.get("collection", {})
+    only_sources = collection_cfg.get("only_sources", [])
+    only_sources_set = {
+        str(s).strip()
+        for s in (only_sources if isinstance(only_sources, list) else [])
+        if str(s).strip()
+    }
+    exclude_sources = collection_cfg.get("exclude_sources", [])
+    exclude_sources_set = {
+        str(s).strip()
+        for s in (exclude_sources if isinstance(exclude_sources, list) else [])
+        if str(s).strip()
+    }
     health_cfg = collection_cfg.get("source_health", {})
     health_enabled = bool(health_cfg.get("enabled", True))
     zero_threshold = int(health_cfg.get("zero_collect_threshold", 3))
@@ -153,6 +165,10 @@ def run_crawlers(cfg: Dict[str, Any], logger: logging.Logger) -> List[Dict[str, 
     )
     for source_name, opts in ordered_sources:
         if not opts.get("enabled", False):
+            continue
+        if only_sources_set and source_name not in only_sources_set:
+            continue
+        if source_name in exclude_sources_set:
             continue
         if health_enabled:
             consecutive_zero = int(source_health.get(source_name, {}).get("consecutive_zero", 0))

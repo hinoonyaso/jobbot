@@ -1,0 +1,22 @@
+{
+  "status_code": 404,
+  "reason": "Not Found",
+  "url": "https://www.bearrobotics.ai/ko/careers/",
+  "content_type": "text/html;charset=utf-8",
+  "content_length": 385917,
+  "headers": {
+    "Age": "0",
+    "Content-Encoding": "gzip",
+    "Content-Length": "56388",
+    "Content-Type": "text/html;charset=utf-8",
+    "Date": "Sun, 15 Feb 2026 12:15:38 GMT",
+    "Etag": "W/\"d7299f72757c0c0e86c15255856381fd\"",
+    "Expires": "Thu, 01 Jan 1970 00:00:00 GMT",
+    "Server": "Squarespace",
+    "Strict-Transport-Security": "max-age=15552000",
+    "Vary": "Accept-Encoding",
+    "X-Content-Type-Options": "nosniff",
+    "X-Contextid": "Go0CrgTa/JF8N13iX",
+    "X-Frame-Options": "SAMEORIGIN, SAMEORIGIN"
+  }
+}

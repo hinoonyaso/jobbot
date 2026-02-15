@@ -51,6 +51,7 @@ def deduplicate_jobs(jobs: List[Dict[str, Any]], cfg: Dict[str, Any], logger) ->
         company = normalize_company(job.get("company", ""))
         location = normalize_text(job.get("location", ""))
         desc = normalize_text(job.get("description", ""))
+        sparse_profile = (company in {"", "unknown"}) and len(desc) < 20
 
         tc_hash = title_company_hash(title, company)
         desc_hash = desc_fingerprint(desc)
@@ -58,17 +59,18 @@ def deduplicate_jobs(jobs: List[Dict[str, Any]], cfg: Dict[str, Any], logger) ->
 
         if url and url in seen_urls:
             continue
-        if tc_hash in seen_title_company:
-            continue
-        if desc_hash in seen_desc:
-            continue
-        if cross_key in canonical_keys:
+        if not sparse_profile:
+            if tc_hash in seen_title_company:
+                continue
+            if desc_hash in seen_desc:
+                continue
+            if cross_key in canonical_keys:
+                continue
+
+        if (not sparse_profile) and sim_enabled and any(_is_similar(title, normalize_text(x.get("title", "")), sim_threshold) for x in unique):
             continue
 
-        if sim_enabled and any(_is_similar(title, normalize_text(x.get("title", "")), sim_threshold) for x in unique):
-            continue
-
-        if cross_enabled:
+        if (not sparse_profile) and cross_enabled:
             cur_tokens = _token_set(f"{title} {company} {location} {desc[:200]}")
             duplicated = False
             for x in unique:
@@ -83,9 +85,10 @@ def deduplicate_jobs(jobs: List[Dict[str, Any]], cfg: Dict[str, Any], logger) ->
 
         if url:
             seen_urls.add(url)
-        seen_title_company.add(tc_hash)
-        seen_desc.add(desc_hash)
-        canonical_keys.add(cross_key)
+        if not sparse_profile:
+            seen_title_company.add(tc_hash)
+            seen_desc.add(desc_hash)
+            canonical_keys.add(cross_key)
         copied = dict(job)
         copied["url"] = url or job.get("url", "")
         unique.append(copied)

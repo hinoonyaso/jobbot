@@ -31,9 +31,13 @@ def send_email(cfg: Dict[str, Any], html: str, subject: str, logger) -> bool:
         logger.error("email app_password missing")
         return False
 
-    with smtplib.SMTP(host, port, timeout=20) as server:
-        server.starttls()
-        server.login(sender, password)
-        server.sendmail(sender, recipients, msg.as_string())
-    logger.info("email sent recipients=%d", len(recipients))
-    return True
+    try:
+        with smtplib.SMTP(host, port, timeout=20) as server:
+            server.starttls()
+            server.login(sender, password)
+            server.sendmail(sender, recipients, msg.as_string())
+        logger.info("email sent recipients=%d", len(recipients))
+        return True
+    except Exception as e:
+        logger.error("email send failed: %s", e)
+        return False
