@@ -436,10 +436,10 @@ email:
   enable_send: true
   smtp_host: smtp.gmail.com
   smtp_port: 587
-  sender: hinoonyaso@gmail.com
-  app_password: itwv lpyb zhov aizi
+  sender: ""
+  app_password: ""
   recipients:
-  - hinoonyaso@gmail.com
+  - ""
   skip_if_empty: true
 schedule:
   cron: 0 8 * * *
@@ -448,7 +448,7 @@ database:
   host: 127.0.0.1
   port: 3306
   user: jobbot
-  password: '1111'
+  password: ""
   database: jobbot
   charset: utf8mb4
 search:
